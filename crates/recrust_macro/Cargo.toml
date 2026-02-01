@@ -10,4 +10,4 @@ proc-macro = true
 recrust_ast = { path = "../recrust_ast" }
 proc-macro2 = "1.0.94"
 quote = "1.0.39"
-syn = "2.0.48"
+syn = "2.0"

@@ -1,17 +1,14 @@
-use std::{
-    collections::HashMap,
-    ops::{Deref, DerefMut},
-};
+use std::collections::HashMap;
 
-use proc_macro2::TokenStream;
 use syn::{
     Ident, Token, braced,
     parse::{Parse, ParseStream},
 };
 
-use crate::rewrite_rsx;
+use crate::braced::Braced;
 
-pub struct Props(HashMap<Ident, TokenStream>);
+#[derive(Clone)]
+pub struct Props(pub HashMap<Ident, Braced>);
 
 impl Parse for Props {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -24,26 +21,13 @@ impl Parse for Props {
     }
 }
 
-impl Deref for Props {
-    type Target = HashMap<Ident, TokenStream>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl DerefMut for Props {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
+#[derive(Clone)]
 pub struct Prop {
     pub name: Ident,
-    pub value: TokenStream,
+    pub value: Braced,
 }
 
 impl Parse for Prop {
-    // ident = { expr }
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let name = input.parse::<Ident>()?;
 
@@ -54,7 +38,7 @@ impl Parse for Prop {
 
         Ok(Self {
             name,
-            value: rewrite_rsx(content.parse()?),
+            value: content.parse()?,
         })
     }
 }

@@ -3,14 +3,15 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+use proc_macro2::TokenStream;
 use syn::{
-    Expr, Ident, Token, braced,
+    Ident, Token, braced,
     parse::{Parse, ParseStream},
 };
 
-use crate::node::Node;
+use crate::rewrite_rsx;
 
-pub struct Props(HashMap<Ident, PropValue>);
+pub struct Props(HashMap<Ident, TokenStream>);
 
 impl Parse for Props {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -24,7 +25,7 @@ impl Parse for Props {
 }
 
 impl Deref for Props {
-    type Target = HashMap<Ident, PropValue>;
+    type Target = HashMap<Ident, TokenStream>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -36,14 +37,9 @@ impl DerefMut for Props {
     }
 }
 
-pub enum PropValue {
-    Expr(Expr),
-    Children(Vec<Node>),
-}
-
 pub struct Prop {
     pub name: Ident,
-    pub value: PropValue,
+    pub value: TokenStream,
 }
 
 impl Parse for Prop {
@@ -56,16 +52,9 @@ impl Parse for Prop {
         let content;
         braced!(content in input);
 
-        let value: PropValue = if name.to_string() == "children" {
-            let mut children = Vec::new();
-            while !content.is_empty() {
-                children.push(content.parse::<Node>()?);
-            }
-            PropValue::Children(children)
-        } else {
-            PropValue::Expr(content.parse::<Expr>()?)
-        };
-
-        Ok(Self { name, value })
+        Ok(Self {
+            name,
+            value: rewrite_rsx(content.parse()?),
+        })
     }
 }

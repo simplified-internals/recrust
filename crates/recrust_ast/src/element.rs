@@ -1,13 +1,11 @@
 use proc_macro2::Span;
+use quote::quote;
 use syn::{
     Ident, Token,
     parse::{Parse, ParseStream},
 };
 
-use crate::{
-    node::Node,
-    props::{PropValue, Props},
-};
+use crate::{node::Node, props::Props};
 
 pub struct RSXElement {
     pub tag: Ident,
@@ -47,7 +45,7 @@ impl Parse for RSXElement {
         if !children.is_empty() {
             props.insert(
                 Ident::new("children", Span::call_site()),
-                PropValue::Children(children),
+                quote! { vec![#(#children),*] },
             );
         }
 

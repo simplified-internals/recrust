@@ -2,6 +2,7 @@ use proc_macro2::Span;
 use quote::{ToTokens, quote};
 use syn::{
     Ident, Token,
+    ext::IdentExt,
     parse::{Parse, ParseStream},
 };
 
@@ -21,7 +22,7 @@ impl Parse for RSXElement {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         // Parse Opening Tag
         input.parse::<Token![<]>()?;
-        let tag = input.parse::<Ident>()?;
+        let tag = input.call(Ident::parse_any)?;
 
         // Parse props
         let mut props = input.parse::<Props>()?;
@@ -56,7 +57,7 @@ impl Parse for RSXElement {
         // Parse Closing Tag: `</div>`
         input.parse::<Token![<]>()?;
         input.parse::<Token![/]>()?;
-        let closing_tag = input.parse::<Ident>()?;
+        let closing_tag = input.call(Ident::parse_any)?;
         input.parse::<Token![>]>()?;
 
         if closing_tag != tag {
@@ -74,10 +75,32 @@ impl ToTokens for RSXElement {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let tag_fn = self.tag.clone();
 
-        // Conver props to a HashMap of key-value pairs
         // key is the prop name, value is a closure that returns the prop value (enables diffing)
-        let props = self.props.0.iter().map(|(k, v)| quote!((#k, || #v)));
-        let fn_props = quote! { std::collections::HashMap::from([#(#props),*]) };
+        let props = self.props.0.iter().map(|(key, value)| {
+            let key_str = key.to_string();
+
+            // If the value holds only nodes, we can return a vec of nodes
+            if value
+                .0
+                .iter()
+                .all(|part| matches!(part, BracedValue::Node(_)))
+            {
+                let nodes = value
+                    .0
+                    .iter()
+                    .map(|part| match part {
+                        BracedValue::Node(node) => quote! { #node },
+                        _ => unreachable!(),
+                    })
+                    .collect::<Vec<_>>();
+
+                return quote! { (#key_str, vec![#(#nodes),*]) };
+            }
+
+            // Otherwise, we return the prop value as is
+            quote!((#key_str, #value ))
+        });
+        let fn_props = quote! { vec![#(#props),*] };
 
         tokens.extend(quote! {
             create_element(#tag_fn, #fn_props)

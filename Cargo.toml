@@ -1,3 +1,13 @@
+[package]
+name = "recrust"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
 [workspace]
 resolver = "2"
-members = ["crates/recrust_macro", "crates/recrust_ast"]
+members = ["crates/recrust_macro", "crates/recrust_ast", "examples/dioxus"]
+
+[[example]]
+name = "dioxus"
+path = "examples/dioxus"

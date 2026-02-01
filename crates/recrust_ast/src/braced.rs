@@ -1,5 +1,5 @@
 use proc_macro2::{Group, Span, TokenStream as TokenStream2, TokenTree};
-use quote::ToTokens;
+use quote::{ToTokens, quote};
 use syn::{
     Token,
     parse::{Parse, ParseStream, discouraged::Speculative},
@@ -9,8 +9,10 @@ use crate::node::Node;
 
 #[derive(Clone)]
 pub enum BracedValue {
-    Tree(TokenStream2),
+    // Just plain rust code, no need to expand
+    Static(TokenStream2),
     Node(Box<Node>),
+    // Nested braced blocks that might contain RSX code
     Group {
         delimiter: proc_macro2::Delimiter,
         span: proc_macro2::Span,
@@ -31,7 +33,7 @@ impl ToTokens for Braced {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         for part in &self.0 {
             match part {
-                BracedValue::Tree(tree) => tokens.extend(tree.clone()),
+                BracedValue::Static(tree) => tokens.extend(tree.clone()),
                 BracedValue::Node(node) => node.to_tokens(tokens),
                 BracedValue::Group {
                     delimiter,
@@ -59,7 +61,7 @@ pub fn rewrite_rsx(input: ParseStream) -> syn::Result<Braced> {
             if let Ok(node) = fork.parse::<Node>() {
                 // If the current token stream is not empty, push it to the parts vector
                 if !current.is_empty() {
-                    parts.0.push(BracedValue::Tree(current));
+                    parts.0.push(BracedValue::Static(current));
                     current = TokenStream2::new();
                 }
 
@@ -83,7 +85,7 @@ pub fn rewrite_rsx(input: ParseStream) -> syn::Result<Braced> {
             TokenTree::Group(g) => {
                 // Flush any accumulated raw tokens before emitting the group to preserve order.
                 if !current.is_empty() {
-                    parts.0.push(BracedValue::Tree(current));
+                    parts.0.push(BracedValue::Static(current));
                     current = TokenStream2::new();
                 }
 
@@ -100,7 +102,7 @@ pub fn rewrite_rsx(input: ParseStream) -> syn::Result<Braced> {
     }
 
     if !current.is_empty() {
-        parts.0.push(BracedValue::Tree(current));
+        parts.0.push(BracedValue::Static(current));
     }
 
     Ok(parts)

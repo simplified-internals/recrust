@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use syn::{
     Ident, Token, braced,
+    ext::IdentExt,
     parse::{Parse, ParseStream},
 };
 
@@ -29,7 +30,8 @@ pub struct Prop {
 
 impl Parse for Prop {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let name = input.parse::<Ident>()?;
+        // Allow reserved keywords like `type` to be used as prop names.
+        let name = input.call(Ident::parse_any)?;
 
         input.parse::<Token![=]>()?;
 

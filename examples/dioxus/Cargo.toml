@@ -1,0 +1,8 @@
+[package]
+name = "dioxus"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+recrust_macro = { path = "../../crates/recrust_macro" }
+dioxus-native = {version = "0.7.3", features = ["prelude"]}

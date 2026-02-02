@@ -10,31 +10,38 @@ use syn::{
 
 use crate::{Component, Element, ExprNode};
 
+// ---------------------------------- Macro Traits: Input / Output ----------------------------------
+
 #[derive(Clone)]
 pub enum Node {
+    /// <div ... />
     Element(Element),
+    /// <MyComponent ... />
     Component(Component),
+    /// "Hello, world!"
     Text(LitStr),
+    /// { 1 + 2 * 3 }
+    /// This also finds and expands any nested RSX code inside the `{ ... }` block.
     RawExpr(ExprNode),
 }
 
 impl Parse for Node {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        // If the next token is a <, it should be some rsx: `<div />` so parse it as an RSXElement
+        // `<` = element or component
         if input.peek(Token![<]) {
             let fork = input.fork();
-            // Parse Opening Tag
+
             fork.parse::<Token![<]>()?;
             let tag = fork.call(Ident::parse_any)?.to_string();
 
+            // If the tag is lowercase, it's an element, otherwise it's a component
             if tag.chars().next().unwrap().is_ascii_lowercase() {
                 Ok(Node::Element(input.parse()?))
             } else {
                 Ok(Node::Component(input.parse()?))
             }
         }
-        // If the next token is a {, parse its contents as a `Braced` stream
-        // (mixed Rust tokens + embedded `<...>` RSX nodes).
+        // `{` = raw expression
         else if input.peek(syn::token::Brace) {
             let content;
             braced!(content in input);
@@ -56,11 +63,14 @@ impl ToTokens for Node {
         match self {
             Node::Element(element) => element.to_tokens(tokens),
             Node::Component(component) => component.to_tokens(tokens),
+            // Important to add back the braces to the raw expression
             Node::RawExpr(raw_expr) => tokens.extend(quote::quote!({ #raw_expr })),
             Node::Text(text) => text.to_tokens(tokens),
         }
     }
 }
+
+// ---------------------------------- Other ----------------------------------
 
 impl Debug for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

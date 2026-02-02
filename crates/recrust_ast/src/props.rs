@@ -8,16 +8,20 @@ use syn::{
 
 use crate::raw_expr::ExprNode;
 
+// ---------------------------------- Macro Traits: Input / Output ----------------------------------
+
 #[derive(Clone, Debug)]
 pub struct Props(pub HashMap<Ident, ExprNode>);
 
 impl Parse for Props {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut props = HashMap::new();
+
         while !(input.peek(Token![>]) || (input.peek(Token![/]) && input.peek2(Token![>]))) {
             let prop = input.parse::<Prop>()?;
             props.insert(prop.name, prop.value);
         }
+
         Ok(Self(props))
     }
 }
@@ -30,7 +34,6 @@ pub struct Prop {
 
 impl Parse for Prop {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        // Allow reserved keywords like `type` to be used as prop names.
         let name = input.call(Ident::parse_any)?;
 
         input.parse::<Token![=]>()?;

@@ -7,12 +7,15 @@ use syn::{
 
 use crate::node::Node;
 
+// ---------------------------------- Macro Traits: Input / Output ----------------------------------
+
 #[derive(Clone, Debug)]
 pub enum PartialExpr {
-    // Just plain rust code, no need to expand
+    /// Just plain rust code, no need to expand
     Normal(TokenStream2),
+    /// Some RSX code which needs to be expanded
     RSX(Box<Node>),
-    // Nested braced blocks that might contain RSX code
+    /// Nested blocks that might contain RSX code
     ExprNode {
         delimiter: proc_macro2::Delimiter,
         span: proc_macro2::Span,
@@ -49,31 +52,34 @@ impl ToTokens for ExprNode {
     }
 }
 
+// ---------------------------------- Other ----------------------------------
+
+/// Recursively clasifies RSX that is inside the `{ ... }` blocks
+/// into **Node** and **TokenStream** tokens.
 pub fn rewrite_rsx(input: ParseStream) -> syn::Result<ExprNode> {
     let mut parts: ExprNode = ExprNode(Vec::new());
     let mut current = TokenStream2::new();
 
     while !input.is_empty() {
-        // A `<`  token might be a Node
+        //  `<` = might be a Node
         if input.peek(Token![<]) {
             let fork = input.fork();
 
             if let Ok(node) = fork.parse::<Node>() {
-                // If the current token stream is not empty, push it to the parts vector
+                // If the current token stream is not empty, push it to the `parts` vector
                 if !current.is_empty() {
                     parts.0.push(PartialExpr::Normal(current));
                     current = TokenStream2::new();
                 }
 
-                // Parse the Node and push the expanded output to the parts vector
+                // Parse the Node and push the expanded output to the `parts` vector
                 input.advance_to(&fork);
                 parts.0.push(PartialExpr::RSX(Box::new(node)));
                 continue;
             }
         }
 
-        // Otherwise, copy the next token tree
-        // If it's a group, rewrite its inner stream so RSX inside nested blocks gets expanded too.
+        // Retrieve the next token
         let token: TokenTree = input.step(|cursor| {
             cursor
                 .token_tree()
@@ -89,6 +95,7 @@ pub fn rewrite_rsx(input: ParseStream) -> syn::Result<ExprNode> {
                     current = TokenStream2::new();
                 }
 
+                // parse the nested block and expand any RSX code inside it
                 let inner: ExprNode = syn::parse2(g.stream())?;
 
                 parts.0.push(PartialExpr::ExprNode {
@@ -97,10 +104,12 @@ pub fn rewrite_rsx(input: ParseStream) -> syn::Result<ExprNode> {
                     inner,
                 });
             }
+            // other tokens are just added to the current token stream
             other => current.extend(std::iter::once(other)),
         }
     }
 
+    // add any remaining tokens to the `parts` vector
     if !current.is_empty() {
         parts.0.push(PartialExpr::Normal(current));
     }

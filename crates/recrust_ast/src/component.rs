@@ -8,6 +8,8 @@ use syn::{
 
 use crate::{PartialExpr, node::Node, props::Props, raw_expr::ExprNode};
 
+// ---------------------------------- Macro Traits: Input / Output ----------------------------------
+
 #[derive(Clone, Debug)]
 pub struct Component {
     pub tag: Ident,
@@ -71,7 +73,6 @@ impl ToTokens for Component {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let tag_fn = self.tag.clone();
 
-        // key is the prop name, value is a closure that returns the prop value (enables diffing)
         let props = self.props.0.iter().map(|(key, value)| {
             let key_str = key.to_string();
 
@@ -96,10 +97,9 @@ impl ToTokens for Component {
             // Otherwise, we return the prop value as is
             quote!((#key_str, #value ))
         });
-        let fn_props = quote! { vec![#(#props),*] };
 
         tokens.extend(quote! {
-            create_element(#tag_fn, #fn_props)
+            create_element(#tag_fn, vec![ #(#props),* ])
         });
     }
 }

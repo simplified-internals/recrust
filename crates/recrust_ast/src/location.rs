@@ -1,5 +1,5 @@
 // see https://github.com/DioxusLabs/dioxus/blob/main/packages/rsx/src/location.rs#L16
-// This is for hotreloading, but i m not sure if we need it
+// This is for hotreloading, but I'm not sure if we need it
 
 use std::{cell::Cell, hash::Hash};
 

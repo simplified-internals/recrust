@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
@@ -56,6 +58,17 @@ impl ToTokens for Node {
             Node::Component(component) => component.to_tokens(tokens),
             Node::RawExpr(raw_expr) => tokens.extend(quote::quote!({ #raw_expr })),
             Node::Text(text) => text.to_tokens(tokens),
+        }
+    }
+}
+
+impl Debug for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::Element(element) => write!(f, "Element({:?})", element),
+            Node::Component(component) => write!(f, "Component({:?})", component),
+            Node::RawExpr(raw_expr) => write!(f, "RawExpr({:?})", raw_expr),
+            Node::Text(text) => write!(f, "Text({:?})", text.to_token_stream().to_string()),
         }
     }
 }

@@ -7,21 +7,21 @@ use syn::{
 
 use crate::node::Node;
 
-#[derive(Clone)]
-pub enum BracedValue {
+#[derive(Clone, Debug)]
+pub enum PartialExpr {
     // Just plain rust code, no need to expand
-    Static(TokenStream2),
-    Node(Box<Node>),
+    Normal(TokenStream2),
+    RSX(Box<Node>),
     // Nested braced blocks that might contain RSX code
-    Group {
+    ExprNode {
         delimiter: proc_macro2::Delimiter,
         span: proc_macro2::Span,
         inner: ExprNode,
     },
 }
 
-#[derive(Clone)]
-pub struct ExprNode(pub Vec<BracedValue>);
+#[derive(Clone, Debug)]
+pub struct ExprNode(pub Vec<PartialExpr>);
 
 impl Parse for ExprNode {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -33,9 +33,9 @@ impl ToTokens for ExprNode {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         for part in &self.0 {
             match part {
-                BracedValue::Static(tree) => tokens.extend(tree.clone()),
-                BracedValue::Node(node) => node.to_tokens(tokens),
-                BracedValue::Group {
+                PartialExpr::Normal(tree) => tokens.extend(tree.clone()),
+                PartialExpr::RSX(node) => node.to_tokens(tokens),
+                PartialExpr::ExprNode {
                     delimiter,
                     span,
                     inner,
@@ -61,13 +61,13 @@ pub fn rewrite_rsx(input: ParseStream) -> syn::Result<ExprNode> {
             if let Ok(node) = fork.parse::<Node>() {
                 // If the current token stream is not empty, push it to the parts vector
                 if !current.is_empty() {
-                    parts.0.push(BracedValue::Static(current));
+                    parts.0.push(PartialExpr::Normal(current));
                     current = TokenStream2::new();
                 }
 
                 // Parse the Node and push the expanded output to the parts vector
                 input.advance_to(&fork);
-                parts.0.push(BracedValue::Node(Box::new(node)));
+                parts.0.push(PartialExpr::RSX(Box::new(node)));
                 continue;
             }
         }
@@ -85,13 +85,13 @@ pub fn rewrite_rsx(input: ParseStream) -> syn::Result<ExprNode> {
             TokenTree::Group(g) => {
                 // Flush any accumulated raw tokens before emitting the group to preserve order.
                 if !current.is_empty() {
-                    parts.0.push(BracedValue::Static(current));
+                    parts.0.push(PartialExpr::Normal(current));
                     current = TokenStream2::new();
                 }
 
                 let inner: ExprNode = syn::parse2(g.stream())?;
 
-                parts.0.push(BracedValue::Group {
+                parts.0.push(PartialExpr::ExprNode {
                     delimiter: g.delimiter(),
                     span: g.span(),
                     inner,
@@ -102,7 +102,7 @@ pub fn rewrite_rsx(input: ParseStream) -> syn::Result<ExprNode> {
     }
 
     if !current.is_empty() {
-        parts.0.push(BracedValue::Static(current));
+        parts.0.push(PartialExpr::Normal(current));
     }
 
     Ok(parts)

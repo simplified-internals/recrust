@@ -8,7 +8,7 @@ use syn::{
 
 use crate::raw_expr::ExprNode;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Props(pub HashMap<Ident, ExprNode>);
 
 impl Parse for Props {
@@ -22,7 +22,7 @@ impl Parse for Props {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Prop {
     pub name: Ident,
     pub value: ExprNode,

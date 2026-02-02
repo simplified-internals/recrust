@@ -6,13 +6,9 @@ use syn::{
     parse::{Parse, ParseStream},
 };
 
-use crate::{
-    node::Node,
-    props::Props,
-    raw_expr::{BracedValue, ExprNode},
-};
+use crate::{PartialExpr, node::Node, props::Props, raw_expr::ExprNode};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Element {
     pub tag: Ident,
     pub props: Props,
@@ -46,7 +42,7 @@ impl Parse for Element {
 
             children
                 .0
-                .push(BracedValue::Node(Box::new(input.parse::<Node>()?)));
+                .push(PartialExpr::RSX(Box::new(input.parse::<Node>()?)));
         }
         if !children.0.is_empty() {
             props
@@ -83,13 +79,13 @@ impl ToTokens for Element {
             if value
                 .0
                 .iter()
-                .all(|part| matches!(part, BracedValue::Node(_)))
+                .all(|part| matches!(part, PartialExpr::RSX(_)))
             {
                 let nodes = value
                     .0
                     .iter()
                     .map(|part| match part {
-                        BracedValue::Node(node) => quote! { #node },
+                        PartialExpr::RSX(node) => quote! { #node },
                         _ => unreachable!(),
                     })
                     .collect::<Vec<_>>();

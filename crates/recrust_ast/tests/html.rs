@@ -1,7 +1,7 @@
 use quote::{ToTokens, quote};
 
 mod utils;
-use recrust_ast::BracedValue;
+use recrust_ast::PartialExpr;
 use utils::parse_element;
 
 use crate::utils::{expect_element, prop_tokens};
@@ -40,7 +40,7 @@ fn tag_with_children_and_props() {
     );
 
     // children are stored as a synthetic `children` prop (also a `Braced`)
-    let BracedValue::Node(span_node) = &prop_tokens(&el, "children").0[0] else {
+    let PartialExpr::RSX(span_node) = &prop_tokens(&el, "children").0[0] else {
         panic!(
             "expected span node, got {:?}",
             prop_tokens(&el, "children").to_token_stream().to_string()

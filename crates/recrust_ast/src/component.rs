@@ -13,12 +13,12 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Element {
+pub struct Component {
     pub tag: Ident,
     pub props: Props,
 }
 
-impl Parse for Element {
+impl Parse for Component {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         // Parse Opening Tag
         input.parse::<Token![<]>()?;
@@ -71,7 +71,7 @@ impl Parse for Element {
     }
 }
 
-impl ToTokens for Element {
+impl ToTokens for Component {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let tag_fn = self.tag.clone();
 

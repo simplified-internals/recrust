@@ -6,10 +6,10 @@ use syn::{
     parse::{Parse, ParseStream},
 };
 
-use crate::braced::Braced;
+use crate::raw_expr::ExprNode;
 
 #[derive(Clone)]
-pub struct Props(pub HashMap<Ident, Braced>);
+pub struct Props(pub HashMap<Ident, ExprNode>);
 
 impl Parse for Props {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -25,7 +25,7 @@ impl Parse for Props {
 #[derive(Clone)]
 pub struct Prop {
     pub name: Ident,
-    pub value: Braced,
+    pub value: ExprNode,
 }
 
 impl Parse for Prop {

@@ -1,5 +1,5 @@
 use proc_macro2::{Group, Span, TokenStream as TokenStream2, TokenTree};
-use quote::{ToTokens, quote};
+use quote::ToTokens;
 use syn::{
     Token,
     parse::{Parse, ParseStream, discouraged::Speculative},
@@ -16,20 +16,20 @@ pub enum BracedValue {
     Group {
         delimiter: proc_macro2::Delimiter,
         span: proc_macro2::Span,
-        inner: Braced,
+        inner: ExprNode,
     },
 }
 
 #[derive(Clone)]
-pub struct Braced(pub Vec<BracedValue>);
+pub struct ExprNode(pub Vec<BracedValue>);
 
-impl Parse for Braced {
+impl Parse for ExprNode {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         rewrite_rsx(input)
     }
 }
 
-impl ToTokens for Braced {
+impl ToTokens for ExprNode {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         for part in &self.0 {
             match part {
@@ -49,8 +49,8 @@ impl ToTokens for Braced {
     }
 }
 
-pub fn rewrite_rsx(input: ParseStream) -> syn::Result<Braced> {
-    let mut parts: Braced = Braced(Vec::new());
+pub fn rewrite_rsx(input: ParseStream) -> syn::Result<ExprNode> {
+    let mut parts: ExprNode = ExprNode(Vec::new());
     let mut current = TokenStream2::new();
 
     while !input.is_empty() {
@@ -89,7 +89,7 @@ pub fn rewrite_rsx(input: ParseStream) -> syn::Result<Braced> {
                     current = TokenStream2::new();
                 }
 
-                let inner: Braced = syn::parse2(g.stream())?;
+                let inner: ExprNode = syn::parse2(g.stream())?;
 
                 parts.0.push(BracedValue::Group {
                     delimiter: g.delimiter(),

@@ -1,31 +1,42 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
-    LitStr, Token, braced,
+    Ident, LitStr, Token, braced,
+    ext::IdentExt,
     parse::{Parse, ParseStream},
 };
 
-use crate::{Braced, element::RSXElement};
+use crate::{Component, Element, ExprNode};
 
 #[derive(Clone)]
 pub enum Node {
-    Element(RSXElement),
-    Braced(Braced),
+    Element(Element),
+    Component(Component),
     Text(LitStr),
+    RawExpr(ExprNode),
 }
 
 impl Parse for Node {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         // If the next token is a <, it should be some rsx: `<div />` so parse it as an RSXElement
         if input.peek(Token![<]) {
-            Ok(Node::Element(input.parse()?))
+            let fork = input.fork();
+            // Parse Opening Tag
+            fork.parse::<Token![<]>()?;
+            let tag = fork.call(Ident::parse_any)?.to_string();
+
+            if tag.chars().next().unwrap().is_ascii_lowercase() {
+                Ok(Node::Element(input.parse()?))
+            } else {
+                Ok(Node::Component(input.parse()?))
+            }
         }
         // If the next token is a {, parse its contents as a `Braced` stream
         // (mixed Rust tokens + embedded `<...>` RSX nodes).
         else if input.peek(syn::token::Brace) {
             let content;
             braced!(content in input);
-            Ok(Node::Braced(content.parse()?))
+            Ok(Node::RawExpr(content.parse()?))
         }
         // Just a plain string literal
         else if input.peek(syn::LitStr) {
@@ -42,7 +53,8 @@ impl ToTokens for Node {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Node::Element(element) => element.to_tokens(tokens),
-            Node::Braced(braced) => tokens.extend(quote::quote!({ #braced })),
+            Node::Component(component) => component.to_tokens(tokens),
+            Node::RawExpr(raw_expr) => tokens.extend(quote::quote!({ #raw_expr })),
             Node::Text(text) => text.to_tokens(tokens),
         }
     }

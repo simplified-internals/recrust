@@ -1,13 +1,3 @@
-[package]
-name = "recrust"
-version = "0.1.0"
-edition = "2021"
-publish = false
-
 [workspace]
 resolver = "2"
-members = ["crates/recrust_macro", "crates/recrust_ast", "examples/counter_app"]
-
-[[example]]
-name = "counter_app"
-path = "examples/counter_app"
+members = ["crates/recrust_macro", "crates/recrust_ast"]

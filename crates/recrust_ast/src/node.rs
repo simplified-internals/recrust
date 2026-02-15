@@ -8,16 +8,16 @@ use syn::{
     parse::{Parse, ParseStream},
 };
 
-use crate::{Component, Element, ExprNode};
+use crate::{RSXComponent, RSXElement, ExprNode};
 
 // ---------------------------------- Macro Traits: Input / Output ----------------------------------
 
 #[derive(Clone)]
-pub enum Node {
+pub enum RSXNode {
     /// <div ... />
-    Element(Element),
+    RSXElement(RSXElement),
     /// <MyComponent ... />
-    Component(Component),
+    RSXComponent(RSXComponent),
     /// "Hello, world!"
     Text(LitStr),
     /// { 1 + 2 * 3 }
@@ -25,7 +25,7 @@ pub enum Node {
     RawExpr(ExprNode),
 }
 
-impl Parse for Node {
+impl Parse for RSXNode {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         // `<` = element or component
         if input.peek(Token![<]) {
@@ -36,20 +36,20 @@ impl Parse for Node {
 
             // If the tag is lowercase, it's an element, otherwise it's a component
             if tag.chars().next().unwrap().is_ascii_lowercase() {
-                Ok(Node::Element(input.parse()?))
+                Ok(RSXNode::RSXElement(input.parse()?))
             } else {
-                Ok(Node::Component(input.parse()?))
+                Ok(RSXNode::RSXComponent(input.parse()?))
             }
         }
         // `{` = raw expression
         else if input.peek(syn::token::Brace) {
             let content;
             braced!(content in input);
-            Ok(Node::RawExpr(content.parse()?))
+            Ok(RSXNode::RawExpr(content.parse()?))
         }
         // Just a plain string literal
         else if input.peek(syn::LitStr) {
-            Ok(Node::Text(input.parse()?))
+            Ok(RSXNode::Text(input.parse()?))
         }
         // Unknown
         else {
@@ -58,27 +58,27 @@ impl Parse for Node {
     }
 }
 
-impl ToTokens for Node {
+impl ToTokens for RSXNode {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Node::Element(element) => element.to_tokens(tokens),
-            Node::Component(component) => component.to_tokens(tokens),
+            RSXNode::RSXElement(element) => element.to_tokens(tokens),
+            RSXNode::RSXComponent(component) => component.to_tokens(tokens),
             // Important to add back the braces to the raw expression
-            Node::RawExpr(raw_expr) => tokens.extend(quote::quote!({ #raw_expr })),
-            Node::Text(text) => text.to_tokens(tokens),
+            RSXNode::RawExpr(raw_expr) => tokens.extend(quote::quote!({ #raw_expr })),
+            RSXNode::Text(text) => text.to_tokens(tokens),
         }
     }
 }
 
 // ---------------------------------- Other ----------------------------------
 
-impl Debug for Node {
+impl Debug for RSXNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Node::Element(element) => write!(f, "Element({:?})", element),
-            Node::Component(component) => write!(f, "Component({:?})", component),
-            Node::RawExpr(raw_expr) => write!(f, "RawExpr({:?})", raw_expr),
-            Node::Text(text) => write!(f, "Text({:?})", text.to_token_stream().to_string()),
+            RSXNode::RSXElement(element) => write!(f, "Element({:?})", element),
+            RSXNode::RSXComponent(component) => write!(f, "Component({:?})", component),
+            RSXNode::RawExpr(raw_expr) => write!(f, "RawExpr({:?})", raw_expr),
+            RSXNode::Text(text) => write!(f, "Text({:?})", text.to_token_stream().to_string()),
         }
     }
 }

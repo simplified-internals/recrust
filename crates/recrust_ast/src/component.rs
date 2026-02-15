@@ -6,30 +6,39 @@ use syn::{
     parse::{Parse, ParseStream},
 };
 
-use crate::{PartialExpr, node::Node, props::Props, raw_expr::ExprNode};
+use crate::{
+    PartialExpr, RSXAttribute, attributes::RSXAttributes, node::RSXNode, raw_expr::ExprNode,
+};
 
 // ---------------------------------- Macro Traits: Input / Output ----------------------------------
 
 #[derive(Clone, Debug)]
-pub struct Component {
-    pub tag: Ident,
-    pub props: Props,
+pub enum RSXComponent {
+    Normal {
+        opening_tag: Ident,
+        attributes: RSXAttributes,
+        closing_tag: Ident,
+    },
+    SelfClosing {
+        tag: Ident,
+        attributes: RSXAttributes,
+    },
 }
 
-impl Parse for Component {
+impl Parse for RSXComponent {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         // Parse Opening Tag
         input.parse::<Token![<]>()?;
         let tag = input.call(Ident::parse_any)?;
 
-        // Parse props
-        let mut props = input.parse::<Props>()?;
+        // Parse attributes
+        let mut attributes = input.parse::<RSXAttributes>()?;
 
         // Handle self-closing tags: `<div />`
         if input.peek(Token![/]) && input.peek2(Token![>]) {
             input.parse::<Token![/]>()?;
             input.parse::<Token![>]>()?;
-            return Ok(Self { tag, props });
+            return Ok(RSXComponent::SelfClosing { tag, attributes });
         }
 
         // Handle normal opening tags: `<div>`
@@ -44,12 +53,13 @@ impl Parse for Component {
 
             children
                 .0
-                .push(PartialExpr::RSX(Box::new(input.parse::<Node>()?)));
+                .push(PartialExpr::RSX(Box::new(input.parse::<RSXNode>()?)));
         }
         if !children.0.is_empty() {
-            props
-                .0
-                .insert(Ident::new("children", Span::call_site()), children);
+            attributes.0.push(RSXAttribute::Normal {
+                name: Ident::new("children", Span::call_site()),
+                value: children,
+            });
         }
 
         // Parse Closing Tag: `</div>`
@@ -65,41 +75,46 @@ impl Parse for Component {
             ));
         }
 
-        Ok(Self { tag, props })
+        Ok(RSXComponent::Normal {
+            opening_tag: tag,
+            attributes,
+            closing_tag,
+        })
     }
 }
 
-impl ToTokens for Component {
+impl ToTokens for RSXComponent {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let tag_fn = self.tag.clone();
+        let (tag, attributes) = match self {
+            RSXComponent::Normal {
+                opening_tag,
+                attributes,
+                closing_tag: _,
+            } => (opening_tag, attributes),
+            RSXComponent::SelfClosing { tag, attributes } => (tag, attributes),
+        };
 
-        let props = self.props.0.iter().map(|(key, value)| {
-            let key_str = key.to_string();
+        let tag_fn = tag.clone();
 
-            // If the value holds only nodes, we can return a vec of nodes
-            if value
-                .0
-                .iter()
-                .all(|part| matches!(part, PartialExpr::RSX(_)))
-            {
-                let nodes = value
-                    .0
-                    .iter()
-                    .map(|part| match part {
-                        PartialExpr::RSX(node) => quote! { #node },
-                        _ => unreachable!(),
-                    })
-                    .collect::<Vec<_>>();
-
-                return quote! { (#key_str, vec![#(#nodes),*]) };
+        let attributes = attributes.0.iter().map(|attribute| match attribute {
+            RSXAttribute::Normal { name, value } => {
+                let name_str = name.to_string();
+                quote! { __attrs.push( (#name_str, #value) ); }
             }
-
-            // Otherwise, we return the prop value as is
-            quote!((#key_str, #value ))
+            RSXAttribute::Spread { ident } => {
+                quote! { __attrs.extend( #ident ); }
+            }
         });
 
         tokens.extend(quote! {
-            create_element(#tag_fn, vec![ #(#props),* ])
+            create_element(#tag_fn, {
+                let mut __attrs = Vec::new();
+
+                #(#attributes)*
+
+                __attrs
+            }
+            )
         });
     }
 }

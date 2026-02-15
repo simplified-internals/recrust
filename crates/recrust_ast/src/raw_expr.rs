@@ -5,7 +5,7 @@ use syn::{
     parse::{Parse, ParseStream, discouraged::Speculative},
 };
 
-use crate::node::Node;
+use crate::node::RSXNode;
 
 // ---------------------------------- Macro Traits: Input / Output ----------------------------------
 
@@ -14,7 +14,7 @@ pub enum PartialExpr {
     /// Just plain rust code, no need to expand
     Normal(TokenStream2),
     /// Some RSX code which needs to be expanded
-    RSX(Box<Node>),
+    RSX(Box<RSXNode>),
     /// Nested blocks that might contain RSX code
     ExprNode {
         delimiter: proc_macro2::Delimiter,
@@ -65,7 +65,7 @@ pub fn rewrite_rsx(input: ParseStream) -> syn::Result<ExprNode> {
         if input.peek(Token![<]) {
             let fork = input.fork();
 
-            if let Ok(node) = fork.parse::<Node>() {
+            if let Ok(node) = fork.parse::<RSXNode>() {
                 // If the current token stream is not empty, push it to the `parts` vector
                 if !current.is_empty() {
                     parts.0.push(PartialExpr::Normal(current));

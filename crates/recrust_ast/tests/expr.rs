@@ -3,7 +3,7 @@ use quote::{ToTokens, quote};
 mod utils;
 use utils::{parse_element, prop_tokens};
 
-use recrust_ast::{Node, PartialExpr};
+use recrust_ast::{RSXNode, PartialExpr};
 
 #[test]
 fn plain_rust_tokens() {
@@ -27,7 +27,7 @@ fn direct_rsx() {
     };
 
     match node.as_ref() {
-        Node::Element(span) => assert_eq!(span.tag.to_string(), "span"),
+        RSXNode::RSXElement(span) => assert_eq!(span.tag.to_string(), "span"),
         other => panic!(
             "expected `Node::Element(<span/>)`, got {:?}",
             std::mem::discriminant(other)
@@ -62,7 +62,7 @@ fn simple_braced() {
     };
 
     match node.as_ref() {
-        Node::RawExpr(expr) => assert_eq!(expr.to_token_stream().to_string(), "count"),
+        RSXNode::RawExpr(expr) => assert_eq!(expr.to_token_stream().to_string(), "count"),
         other => panic!(
             "expected `Node::RawExpr`, got {:?}",
             std::mem::discriminant(other)

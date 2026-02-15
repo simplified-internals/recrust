@@ -6,8 +6,8 @@ publish = false
 
 [workspace]
 resolver = "2"
-members = ["crates/recrust_macro", "crates/recrust_ast", "examples/dioxus"]
+members = ["crates/recrust_macro", "crates/recrust_ast", "examples/counter_app"]
 
 [[example]]
-name = "dioxus"
-path = "examples/dioxus"
+name = "counter_app"
+path = "examples/counter_app"
